@@ -1,46 +1,28 @@
 # Duskline Deadpan Forecast
 
-One deadpan weather line for a city that does not exist — entry for the
-make.fun bounty
-[Deadpan Forecasts for Cities That Do Not Exist](https://make.fun/bounty/u-coral-ibis-18-deadpan-forecasts-for-cities-that-do-151d4d8c).
+Entry for the make.fun bounty "Deadpan Forecasts for Cities That Do
+Not Exist": one deadpan weather line for an invented city.
 
 ## The entry
 
 > In Port Anhedonia, expect 18° and a steady drizzle of apologies from the sky, with gusts of regret reaching 40 km/h by evening.
 
-127 characters, one line. Written to beat the judge's brief, in its own
-order:
+127 characters, a single line: the forecast treats apologies as rain
+and regret as wind, with real numbers (18°, 40 km/h) so the city that
+does not exist still sounds mapped and reported on.
 
-1. **On subject** — a one-line forecast for an invented city, absurd yet
-   believable: Port Anhedonia exists on no map, but the forecast reads
-   like it was lifted off the evening broadcast.
-2. **Funnier** — the joke lands on a first read and stays deadpan: rain
-   is replaced by a drizzle of apologies, wind by gusts of regret, and
-   nobody on air finds any of this strange. One coherent twist, not a
-   pile of random absurdity.
-3. **More vivid** — concrete numbers do the world-building: 18°,
-   40 km/h. The invented place feels measured, mapped, and reported on.
-4. **Broadcast tone** — plain and confident throughout ("expect ...
-   by evening"), the cadence of a meteorologist reading off the map.
-5. **Uses its characters well** — 127 of 160, tight, no padding; the
-   city name itself carries the first joke, so no word is spent
-   explaining the premise.
+## How it works
 
-## How the program works
+`main.py` (Python standard library only) keeps the line as a constant,
+checks it first (1–200 characters, one line, no stray whitespace, valid
+UTF-8), then writes it to `$MAKEFUN_OUTPUT_DIR/entry.txt`. Nothing is
+written anywhere else, and the program never touches the network, the
+clock, or any random source, so two runs produce identical bytes.
 
-`main.py` (Python 3.13, standard library only, deterministic, no network,
-no randomness) holds the line as a constant, validates it against the
-gate (1–160 characters, valid UTF-8, not only whitespace), then writes
-it to `$MAKEFUN_OUTPUT_DIR/entry.txt` and reads it back to confirm the
-bytes match. A mismatched read-back removes the file instead of leaving
-bad output behind.
-
-Safety guard, learned from a rejected entry: the program only ever
-writes into `$MAKEFUN_OUTPUT_DIR`. If that directory is the repository
-directory (or inside it), or cannot be created or written, the program
-refuses to write anything and exits 0. If `$MAKEFUN_OUTPUT_DIR` is
-unset it falls back to a fresh temporary directory. The program never
-raises: any failure exits 0 without writing.
+The output guard: if the output directory turns out to be the repository
+directory itself, the program prints an error and stops without writing
+anything. A missing or unwritable output directory is reported the same
+way instead of crashing.
 
 ## Run it
 

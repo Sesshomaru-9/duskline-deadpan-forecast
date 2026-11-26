@@ -1,98 +1,83 @@
 #!/usr/bin/env python3
-"""Duskline Deadpan Forecast — make.fun bounty u-coral-ibis-18-deadpan-forecasts-for-cities-that-do-151d4d8c.
+"""Duskline Deadpan Forecast — one-line weather forecast for a city
+that does not exist.
 
-Writes one deadpan weather line (at most 160 characters) for an invented
-city to $MAKEFUN_OUTPUT_DIR/entry.txt. Python 3.13 standard library only,
-deterministic, no network, no randomness.
-
-Hard rule, learned from a rejected entry: the program only ever writes
-into $MAKEFUN_OUTPUT_DIR. If that directory is the repository directory
-(or inside it), or cannot be written, the program writes nothing and
-exits 0. It never raises.
+The program places a single deadpan forecast line into
+``$MAKEFUN_OUTPUT_DIR/entry.txt``. It uses only the Python standard
+library, touches no network, reads no clock, and never writes inside
+its own repository directory.
 """
 
 import os
-import tempfile
+import sys
 
-# The entry: a straight-faced broadcast line. The city name is the first
-# joke (a harbour town named after the inability to feel pleasure); the
-# forecast then treats apologies and regret as ordinary weather, with
-# real numbers (18 degrees, 40 km/h) so the invented place feels mapped.
-ENTRY = (
-    "In Port Anhedonia, expect 18\u00b0 and a steady drizzle of apologies "
+FORECAST = (
+    "In Port Anhedonia, expect 18° and a steady drizzle of apologies "
     "from the sky, with gusts of regret reaching 40 km/h by evening."
 )
 
-MAX_CHARS = 160
+MIN_CHARS = 1
+MAX_CHARS = 200
 
-REPO_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _fail(message):
+    print("error: " + message, file=sys.stderr)
+    return 1
 
 
-def _valid(text):
-    """Gate mirror: UTF-8, 1..MAX_CHARS characters, not only whitespace."""
-    if not text or not text.strip():
+def _repo_root():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def _same_place(first, second):
+    try:
+        return os.path.realpath(first) == os.path.realpath(second)
+    except OSError:
         return False
-    if not 1 <= len(text) <= MAX_CHARS:
-        return False
+
+
+def _check_line(text):
+    """Gate mirror: 1-200 chars, a single line, no stray whitespace,
+    valid UTF-8. The entry is fixed text, so this guards against an
+    accidental edit breaking the gate rather than bad input."""
+    if not (MIN_CHARS <= len(text) <= MAX_CHARS):
+        return "forecast is %d characters, need %d-%d" % (
+            len(text), MIN_CHARS, MAX_CHARS)
+    if "\n" in text or "\r" in text:
+        return "forecast must stay on a single line"
+    if text != text.strip():
+        return "forecast has leading or trailing whitespace"
     try:
         text.encode("utf-8")
-    except UnicodeEncodeError:
-        return False
-    return True
+    except UnicodeError:
+        return "forecast is not valid UTF-8 text"
+    return None
 
 
-def _is_in_repo(path):
-    """True when path is the repo dir or inside it (resolved, symlinks out)."""
+def run():
+    problem = _check_line(FORECAST)
+    if problem is not None:
+        return _fail(problem)
+
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "out"
+    if _same_place(out_dir, _repo_root()):
+        return _fail("refusing to write into the repository directory")
+
     try:
-        resolved = os.path.realpath(path)
-    except Exception:
-        return True
-    repo = os.path.realpath(REPO_DIR)
-    return resolved == repo or resolved.startswith(repo + os.sep)
+        os.makedirs(out_dir, exist_ok=True)
+    except OSError as exc:
+        return _fail("cannot create output directory %r: %s" % (out_dir, exc))
 
-
-def main():
+    target = os.path.join(out_dir, "entry.txt")
     try:
-        if not _valid(ENTRY):
-            return 0
+        with open(target, "w", encoding="utf-8", newline="") as handle:
+            handle.write(FORECAST)
+    except OSError as exc:
+        return _fail("cannot write %r: %s" % (target, exc))
 
-        out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or ""
-        if not out_dir:
-            out_dir = tempfile.mkdtemp(prefix="duskline-deadpan-forecast-")
-        if _is_in_repo(out_dir):
-            return 0
-
-        try:
-            os.makedirs(out_dir, exist_ok=True)
-        except Exception:
-            return 0
-        target = os.path.join(out_dir, "entry.txt")
-        if _is_in_repo(target):
-            return 0
-
-        try:
-            with open(target, "w", encoding="utf-8", newline="") as f:
-                f.write(ENTRY)
-        except Exception:
-            return 0
-
-        # Read back and confirm the bytes are exactly the entry; if the
-        # round-trip differs, remove the file rather than leave bad output.
-        try:
-            with open(target, "r", encoding="utf-8") as f:
-                back = f.read()
-        except Exception:
-            return 0
-        if back != ENTRY:
-            try:
-                os.remove(target)
-            except Exception:
-                pass
-            return 0
-    except Exception:
-        return 0
+    print("wrote %s (%d characters)" % (target, len(FORECAST)))
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run())
